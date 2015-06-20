@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="eng" ng-app="befunge">
+<head>
+	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/angular-material/0.10.0/angular-material.min.css">
+	<meta name="viewport" content="initial-scale=1" />
+	<title>Orbs Befungis | World of Befunge</title>
+	<style>
+		.search-button {
+			margin-top:-4px;
+		}
+		* { margin:0; padding:0; } /* to remove the top and left whitespace */
+		html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
+		canvas { display:block; } /* To remove the scrollbars */
+	</style>
+</head>
+<body class="app" ng-controller="AppCtrl" layout="column">
+	<md-content class="md-padding" layout="column" style="padding-top:34px;">
+		<div layout="row">
+			<md-autocomplete flex="33"
+          ng-disabled="false"
+          md-no-cache="true"
+          md-selected-item="selectedItem"
+          md-search-text="searchText"
+          md-items="item in querySearch(searchText)"
+          md-item-text="item"
+          md-min-length="2"
+          placeholder="Enter a program name">
+				<md-item-template>
+					<span md-highlight-text="ctrl.searchText" md-highlight-flags="^i">{{item}}</span>
+				</md-item-template>
+				<md-not-found>
+					No matches found for "{{searchText}}".
+				</md-not-found>
+			</md-autocomplete>
+			<div class="search-button">
+				<md-button class="md-raised md-primary">Search</md-button>
+			</div>
+		</div>
+		<div layout="row">
+			<md-list>
+				<md-list-item>
+					<img alt="" ng-src="" class="md-avatar" />
+					<div class="md-list-item-text">
+						<h4>Bill</h4>
+						<h6>Running for 3.34 days</h6>
+					</div>
+					<md-icon md-svg-icon="communication:messenger" ng-click="doSecondaryAction($event)" aria-label="Open Chat" 
+						class="md-secondary md-hue-3" ng-class="{'md-primary': person.newMessage}"></md-icon>
+				</md-list-item>
+			</md-list>
+		</div>
+	</md-content>
+	<canvas id="canvas" style="background-color:green;"></canvas>
+	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.15/angular.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-animate.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-aria.min.js"></script>
+	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/angular-material/0.10.0/angular-material.js"></script>
+	<script type="text/javascript" src="js/app.js"></script>
+	<script>
+		var canvas = document.getElementById('canvas'),
+		
+		context = canvas.getContext('2d');
+		canvas.width = window.innerWidth;
+		canvas.height = window.innerHeight;
+	</script>
+	</body>
+</html>

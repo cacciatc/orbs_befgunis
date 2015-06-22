@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <mqueue.h>
 
 /* pc headings */
 #define UP    1
@@ -16,6 +17,10 @@
 #define PRG_HEIGHT 25
 #define WORLD_WIDTH  2048
 #define WORLD_HEIGHT 2048
+
+/* mqueue */
+#define MQUEUE_MSG_SIZE 80*25
+#define MQUEUE_MAX_MSGS 2048
 
 /* a point in shared memory */
 typedef struct {
@@ -36,8 +41,15 @@ typedef struct {
 	struct vm_node* next;
 } vm_node;
 
+/* shared RAM */
 char** shared;
+
+/* list of VMs */
 vm_node* vms;
+
+/* mqueue */
+mgd_t msg_q;
+struct mq_attr attrs;
 
 /* listen for SIGINT */
 void signal_handler(int signum) {
@@ -131,6 +143,13 @@ int main() {
 	vms = NULL;
 	vm_node* curr_vm;
 	vm_node* prev_vm;
+
+	/* setup mq */
+	attrs.mq_maxmsg  = MQUEUE_MAX_MSGS;
+	attrs.mq_msgsize = MQUEUE_MSG_SIZE;
+	attrs.mq_flags   = 0;
+
+	msg_q = mq_open(CREATE_QUEUE, O_RD | O_CREAT, 0664, 0); 
 
 	signal(SIGINT, signal_handler);
 

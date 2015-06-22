@@ -114,6 +114,9 @@ bool step_interpreter(char** shared, fungal_vm vm) {
 		case 'v':
 			vm.heading = DOWN;
 			break;
+		case ' ':
+			/* NOP */
+			break;
 		default:
 			/* unknown instruction, kill it! */
 			is_dead = true;

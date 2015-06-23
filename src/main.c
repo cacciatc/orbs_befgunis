@@ -262,6 +262,7 @@ int main() {
                 bytes_read = mq_receive(msg_q, msg_buffer, attrs.mq_msgsize, &msg_priority);
 
                 if(bytes_read > 0) {
+                    // move this to a new method
                     new_point.x = -1;
                     new_point.y = -1;
 

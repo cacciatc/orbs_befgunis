@@ -1,6 +1,5 @@
 require 'sinatra'
 require 'posix_mq'
-require 'date'
 
 configure do
   $MQ = POSIX_MQ.new "/orbs-befungis-requests", :w
@@ -10,6 +9,12 @@ get '/' do
   send_file './public/pages/index.html'
 end
 
-get '/api/fungals' do
-  $MQ << "1234567890123456><"
+post '/api/fungals' do
+  uuid = SecureRandom.base64(10)
+
+  if(not params["prg"].nil? and params["prg"].length > 0)
+    prg = params["prg"]
+    
+    $MQ << "#{uuid}#{prg}"
+  end
 end

@@ -5,6 +5,7 @@
 #include <mqueue.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h>
 
 /* pc headings */
 #define UP    1
@@ -12,16 +13,19 @@
 #define LEFT  3
 #define RIGHT 4
 
-#define MAX_STACK_SIZE 80
+#define MAX_STACK_SIZE 48
 
 /* dimensions */
-#define PRG_WIDTH  80
-#define PRG_HEIGHT 25
-#define WORLD_WIDTH  2048
-#define WORLD_HEIGHT 2048
+#define PRG_WIDTH  48
+#define PRG_HEIGHT 48
+#define WORLD_WIDTH  48*48*10
+#define WORLD_HEIGHT 48*48*10
 
+/* prg states */
 #define DIED 0
 #define BORN 1
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /* a point in shared memory */
 typedef struct {
@@ -104,7 +108,7 @@ vm_node* init_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], char msg[], po
     int x, y;
     for(y = at.y; y < at.y + PRG_HEIGHT; y++) {
         for(x = at.x; x < at.x + PRG_WIDTH; x++) {
-            shared[x][y] = prg[(prg_y * 80) + prg_x++];
+            shared[x][y] = prg[(prg_y * PRG_WIDTH) + prg_x++];
         }
         prg_y++;
     }
@@ -167,10 +171,72 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
 
 /* searches shared RAM and finds an available location for a new prg */
 void find_ram(char shared[WORLD_HEIGHT][WORLD_WIDTH], point* p) {
-    p->x = 0;
-    p->y = 0;
+    // wrap arounds for pcs and init interpreter
+    // map interface with real shared memeory  
+    // finish instruction set
+    int x = rand() % WORLD_WIDTH -  PRG_WIDTH;
+    int y = rand() % WORLD_HEIGHT - PRG_HEIGHT;
+
+    int count = 0;
+    vm_node* curr_vm = vms;
+    bool clean = false;
+
+    p->x = -1;
+    p->y = -1;
+    while(count < 1000) {
+      clean = true;
+      while(curr_vm != NULL) {
+        if( (x >= curr_vm->vm.stack.x && x <= curr_vm->vm.stack.x + PRG_WIDTH) && (y >= curr_vm->vm.stack.y && y<= curr_vm->vm.stack.y + PRG_HEIGHT)) {
+          clean = false;
+          break;
+        }
+        curr_vm = curr_vm->next;
+      }
+
+      if(clean) {
+        p->x = x;
+        p->y = y;
+        printf("(%d, %d)\n", x, y);
+        return;
+      }
+      
+      x = rand() % WORLD_WIDTH -  PRG_WIDTH;
+      y = rand() % WORLD_HEIGHT - PRG_HEIGHT;
+    }
 }
 
+/* adds a prg given the buffer and a reference to the list of vms */
+void add_prg(char msg_buffer[], vm_node* prev_vm) {
+  vm_node* new_node;
+  point new_point;
+
+  int bytes_to_send = 0;
+
+  new_point.x = -1;
+  new_point.y = -1;
+
+  find_ram(shared, &new_point);
+
+  if(new_point.x == -1 || new_point.y == -1) {
+    perror("Unable to allocate space for new prg");
+  }
+  else {
+    new_node = (vm_node*) init_interpreter(shared, msg_buffer, new_point);
+    
+    if(prev_vm == NULL) {
+      vms = prev_vm = new_node;
+    }
+    else {
+      prev_vm->next = new_node;
+      prev_vm = new_node;
+    }
+
+    bytes_to_send = prg_create_msg(&new_node->vm, msg_buffer);
+    if(mq_send(msg_i, msg_buffer, bytes_to_send, 0) == -1) {
+      perror("Unable to write to message queue responses");
+    }
+  }
+}
 
 /* creates a msg to send out on the responses queue when a prg is created */
 int prg_create_msg(fungal_vm* vm, char buffer[]) {
@@ -193,23 +259,17 @@ int prg_died_msg(fungal_vm* vm, char buffer[]) {
 int main() {
     /* variables for reading from msg queue */
     int i;
-    int bytes_read;
     int msg_priority;
     char msg_buffer[8192];
+    int bytes_read;
 
-    /* variables for writing to msg queue */
     int bytes_to_send;
-
-    /* variables for adding a new VM */
-    vm_node* new_node;
-    point new_point;
-
-    int vm_count;
 
     /* vm variables */
     vms = NULL;
-    vm_node* curr_vm = NULL;
-    vm_node* prev_vm = NULL;
+    vm_node* curr_vm  = NULL;
+    vm_node* prev_vm  = NULL;
+    vm_node* new_node = NULL;
 
     /* setup mq */
     msg_q = mq_open("/orbs-befungis-requests", O_RDWR | O_CREAT, 0664, NULL);
@@ -224,7 +284,6 @@ int main() {
 
     signal(SIGINT, signal_handler);
 
-    vm_count = 0;
     while(true) {
         /* step each interpreter */
         prev_vm = NULL;
@@ -247,7 +306,6 @@ int main() {
 
                 free(curr_vm);
                 curr_vm = NULL;
-                vm_count--;
             }
             else {
                 prev_vm = curr_vm;
@@ -262,33 +320,7 @@ int main() {
                 bytes_read = mq_receive(msg_q, msg_buffer, attrs.mq_msgsize, &msg_priority);
 
                 if(bytes_read > 0) {
-                    // move this to a new method
-                    new_point.x = -1;
-                    new_point.y = -1;
-
-                    find_ram(shared, &new_point);
-
-                    if(new_point.x == -1 || new_point.y == -1) {
-                        perror("Unable to allocate space for new prg");
-                    }
-                    else {
-                        new_node = (vm_node*) init_interpreter(shared, msg_buffer, new_point);
-
-                        if(prev_vm == NULL) {
-                            vms = prev_vm = new_node;
-                        }
-                        else {
-                            prev_vm->next = (vm_node*) new_node;
-                            prev_vm = new_node;
-                        }
-
-                        vm_count++;
-
-                        bytes_to_send = prg_create_msg(&new_node->vm, msg_buffer);
-                        if(mq_send(msg_i, msg_buffer, bytes_to_send, 0) == -1) {
-                            perror("Unable to write to message queue responses");
-                        }
-                    }
+                  add_prg(msg_buffer, prev_vm);
                 }
             }
         }

@@ -5,7 +5,6 @@
 #include <mqueue.h>
 #include <errno.h>
 #include <string.h>
-#include <math.h>
 
 /* pc headings */
 #define UP    1
@@ -121,6 +120,8 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
     char instruction;
     bool is_alive = true;
 
+    int a, b;
+
     /* ensure relative memory access does not seg fault */
     int delta_x = vm->pc.x - vm->stack.x,
         delta_y = vm->pc.y - vm->stack.y;
@@ -133,6 +134,91 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
     instruction = shared[vm->pc.x][vm->pc.y];
 
     switch(instruction) {
+    case '0':
+        shared[vm->stack.x][vm->stack.y] = 0;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '1':
+        shared[vm->stack.x++][vm->stack.y] = 1;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '2':
+        shared[vm->stack.x++][vm->stack.y] = 2;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '3':
+        shared[vm->stack.x++][vm->stack.y] = 3;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '4':
+        shared[vm->stack.x++][vm->stack.y] = 4;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '5':
+        shared[vm->stack.x++][vm->stack.y] = 5;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '6':
+        shared[vm->stack.x++][vm->stack.y] = 6;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '7':
+        shared[vm->stack.x++][vm->stack.y] = 7;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '8':
+        shared[vm->stack.x++][vm->stack.y] = 8;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '9':
+        shared[vm->stack.x++][vm->stack.y] = 9;
+        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        break;
+    case '+':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        shared[vm->stack.x - 2][vm->stack.y] = a + b;
+
+        vm->stack.x--;
+        break;
+    case '-':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        shared[vm->stack.x - 2][vm->stack.y] = a - b;
+
+        vm->stack.x--;
+        break;
+    case '*':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        shared[vm->stack.x - 2][vm->stack.y] = a * b;
+
+        vm->stack.x--;
+        break;
+    case '/':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        shared[vm->stack.x - 2][vm->stack.y] = a / b;
+
+        vm->stack.x--;
+        break;
+    case '%':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+
+        shared[vm->stack.x - 1][vm->stack.y] = NULL;
+        shared[vm->stack.x - 2][vm->stack.y] = a % b;
+
+        vm->stack.x--;
+        break;
     case '>':
         vm->heading = RIGHT;
         break;
@@ -144,6 +230,21 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
         break;
     case 'v':
         vm->heading = DOWN;
+        break;
+    case '?':
+        switch(rand() % 4) {
+          case 0:
+            vm->heading = UP;
+            break;
+          case 1:
+            vm->heading = DOWN;
+            break;
+          case 2:
+            vm->heading = RIGHT;
+            break;
+          default:
+            vm->heading = LEFT;
+        }
         break;
     case ' ':
         /* NOP */
@@ -190,13 +291,12 @@ void find_ram(char shared[WORLD_HEIGHT][WORLD_WIDTH], point* p) {
           clean = false;
           break;
         }
-        curr_vm = curr_vm->next;
+        curr_vm = (vm_node*) curr_vm->next;
       }
 
       if(clean) {
         p->x = x;
         p->y = y;
-        printf("(%d, %d)\n", x, y);
         return;
       }
       

@@ -117,6 +117,27 @@ vm_node* init_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], char msg[], po
     return node;
 }
 
+void update_pc(fungal_vm* vm) {
+  if(vm->heading == RIGHT) {
+    vm->pc.x = (vm->pc.x + 1) % WORLD_WIDTH;
+  }
+  else if(vm->heading == LEFT) {
+    vm->pc.x--;
+    if(vm->pc.x < 0) { 
+      vm->pc.x = WORLD_WIDTH + vm->pc.x;
+    }
+  }
+  else if(vm->heading == UP) {
+    vm->pc.y--;
+    if(vm->pc.y < 0) {
+      vm->pc.y = WORLD_HEIGHT + vm->pc.y;
+    }
+  }
+  else if(vm->heading == DOWN) {
+    vm->pc.y = (vm->pc.y + 1) % WORLD_WIDTH;
+  }
+}
+
 /* move an interpreter one step and return false if now dead */
 bool step_interpreter(char shared[WORLD_WIDTH][WORLD_HEIGHT], fungal_vm* vm) {
     char instruction;
@@ -128,16 +149,16 @@ bool step_interpreter(char shared[WORLD_WIDTH][WORLD_HEIGHT], fungal_vm* vm) {
     int delta_x = vm->pc.x - vm->stack.x,
         delta_y = vm->pc.y - vm->stack.y;
 
-    printf("[%s] -at (%d, %d)\n", vm->uuid, vm->pc.x, vm->pc.y);
+    //printf("[%s] -at (%d, %d)\n", vm->uuid, vm->pc.x, vm->pc.y);
     if(delta_x > PRG_WIDTH || delta_x < -PRG_WIDTH || delta_y > PRG_HEIGHT || delta_y < -PRG_HEIGHT) {
-        printf("[%s] -alive %d\n", vm->uuid, false);
+        //printf("[%s] -alive %d\n", vm->uuid, false);
         return is_alive = false;
     }
 
     /* grab and execute next instruction */
     instruction = shared[vm->pc.x][vm->pc.y];
 
-    printf("[%s] -exec '%c'\n", vm->uuid, instruction);
+    //printf("[%s] -exec '%c'\n", vm->uuid, instruction);
 
     if(vm->string_mode) {
       shared[vm->stack.x][vm->stack.y] = instruction;
@@ -234,6 +255,24 @@ bool step_interpreter(char shared[WORLD_WIDTH][WORLD_HEIGHT], fungal_vm* vm) {
         a = shared[vm->stack.x - 1][vm->stack.y];
         shared[vm->stack.x - 1][vm->stack.y] = (a == 0);
         break;
+    case ':':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        shared[vm->stack.x][vm->stack.y] = a;
+
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
+        break;
+    case '\\':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        shared[vm->stack.x - 1][vm->stack.y] = shared[vm->stack.x - 2][vm->stack.y];
+        shared[vm->stack.x - 2][vm->stack.y] = a;
+        break;
+    case '$':
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        vm->stack.x--;
+        break;
+    case '#':
+        update_pc(vm);
+        break;
     case '`':
         a = shared[vm->stack.x - 1][vm->stack.y];
         b = shared[vm->stack.x - 2][vm->stack.y];
@@ -293,33 +332,23 @@ bool step_interpreter(char shared[WORLD_WIDTH][WORLD_HEIGHT], fungal_vm* vm) {
       vm->stack.x = WORLD_WIDTH + vm->stack.x;
     }
 
-    if(vm->heading == RIGHT) {
-        vm->pc.x = (vm->pc.x + 1) % WORLD_WIDTH;
-    }
-    else if(vm->heading == LEFT) {
-        vm->pc.x--;
-        if(vm->pc.x < 0) {
-          vm->pc.x = WORLD_WIDTH + vm->pc.x;
-        }
-    }
-    else if(vm->heading == UP) {
-        vm->pc.y--;
-        if(vm->pc.y < 0) {
-          vm->pc.y = WORLD_HEIGHT + vm->pc.y;
-        }
-    }
-    else if(vm->heading == DOWN) {
-        vm->pc.y = (vm->pc.y + 1) % WORLD_WIDTH;
-    }
+    update_pc(vm);
     
-    printf("[%s] -alive %d\n", vm->uuid, is_alive);
+    //printf("[%s] -alive %d\n", vm->uuid, is_alive);
     return is_alive;
 }
 
 /* searches shared RAM and finds an available location for a new prg */
 void find_ram(char shared[WORLD_HEIGHT][WORLD_WIDTH], point* p) {
     // map interface with real shared memeory  
-    // finish instruction set
+    
+    /*
+     * TODO:
+     * g A "get" call (a way to retrieve data in storage). Pop two values y and x, then push the ASCII value of the character 
+     * at that position in the program. If (x,y) is out of bounds, push 0
+     * p  A "put" call (a way to store a value for later use). Pop three values y, x and v, then change the character at the 
+     * position (x,y) in the program to the character with ASCII value v
+     * */
     int x = rand() % WORLD_WIDTH -  PRG_WIDTH;
     int y = rand() % WORLD_HEIGHT - PRG_HEIGHT;
 

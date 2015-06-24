@@ -17,8 +17,8 @@
 /* dimensions */
 #define PRG_WIDTH  48
 #define PRG_HEIGHT 48
-#define WORLD_WIDTH  48*48*10
-#define WORLD_HEIGHT 48*48*10
+#define WORLD_WIDTH  (48*48*10)
+#define WORLD_HEIGHT (48*48*10)
 
 /* prg states */
 #define DIED 0
@@ -36,6 +36,7 @@ typedef struct {
     point pc;
     point stack;
 
+    bool string_mode;
     char uuid[16];
     int heading;
 } fungal_vm;
@@ -47,7 +48,7 @@ typedef struct {
 } vm_node;
 
 /* shared RAM */
-char shared[WORLD_HEIGHT][WORLD_WIDTH];
+char shared[WORLD_WIDTH][WORLD_HEIGHT];
 
 /* list of VMs */
 vm_node* vms;
@@ -97,6 +98,7 @@ vm_node* init_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], char msg[], po
     node->vm.pc.x = at.x;
     node->vm.pc.y = at.y;
 
+    node->vm.string_mode = false;
     node->vm.heading = RIGHT;
     node->next = NULL;
 
@@ -116,7 +118,7 @@ vm_node* init_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], char msg[], po
 }
 
 /* move an interpreter one step and return false if now dead */
-bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
+bool step_interpreter(char shared[WORLD_WIDTH][WORLD_HEIGHT], fungal_vm* vm) {
     char instruction;
     bool is_alive = true;
 
@@ -126,53 +128,62 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
     int delta_x = vm->pc.x - vm->stack.x,
         delta_y = vm->pc.y - vm->stack.y;
 
+    printf("[%s] -at (%d, %d)\n", vm->uuid, vm->pc.x, vm->pc.y);
     if(delta_x > PRG_WIDTH || delta_x < -PRG_WIDTH || delta_y > PRG_HEIGHT || delta_y < -PRG_HEIGHT) {
+        printf("[%s] -alive %d\n", vm->uuid, false);
         return is_alive = false;
     }
 
     /* grab and execute next instruction */
     instruction = shared[vm->pc.x][vm->pc.y];
 
+    printf("[%s] -exec '%c'\n", vm->uuid, instruction);
+
+    if(vm->string_mode) {
+      shared[vm->stack.x][vm->stack.y] = instruction;
+      vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
+    }
+
     switch(instruction) {
     case '0':
         shared[vm->stack.x][vm->stack.y] = 0;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '1':
         shared[vm->stack.x++][vm->stack.y] = 1;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '2':
         shared[vm->stack.x++][vm->stack.y] = 2;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '3':
         shared[vm->stack.x++][vm->stack.y] = 3;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '4':
         shared[vm->stack.x++][vm->stack.y] = 4;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '5':
         shared[vm->stack.x++][vm->stack.y] = 5;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '6':
         shared[vm->stack.x++][vm->stack.y] = 6;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '7':
         shared[vm->stack.x++][vm->stack.y] = 7;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '8':
         shared[vm->stack.x++][vm->stack.y] = 8;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '9':
         shared[vm->stack.x++][vm->stack.y] = 9;
-        vm->stack.x = vm->stack.x + 1 % WORLD_WIDTH;
+        vm->stack.x = (vm->stack.x + 1) % WORLD_WIDTH;
         break;
     case '+':
         a = shared[vm->stack.x - 1][vm->stack.y];
@@ -214,10 +225,34 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
         a = shared[vm->stack.x - 1][vm->stack.y];
         b = shared[vm->stack.x - 2][vm->stack.y];
 
-        shared[vm->stack.x - 1][vm->stack.y] = NULL;
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
         shared[vm->stack.x - 2][vm->stack.y] = a % b;
 
         vm->stack.x--;
+        break;
+    case '!':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        shared[vm->stack.x - 1][vm->stack.y] = (a == 0);
+        break;
+    case '`':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        b = shared[vm->stack.x - 2][vm->stack.y];
+        
+        shared[vm->stack.x - 1][vm->stack.y] = 0;
+        shared[vm->stack.x - 2][vm->stack.y] = b > a;
+
+        vm->stack.x--;
+        break;
+    case '_':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        vm->heading = (a == 0 ? RIGHT : LEFT);
+        break;
+    case '|':
+        a = shared[vm->stack.x - 1][vm->stack.y];
+        vm->heading = (a == 0 ? DOWN : UP);
+        break;
+    case '"':
+        vm->string_mode = !vm->string_mode;
         break;
     case '>':
         vm->heading = RIGHT;
@@ -253,26 +288,36 @@ bool step_interpreter(char shared[WORLD_HEIGHT][WORLD_WIDTH], fungal_vm* vm) {
         /* unknown instruction, kill it! */
         is_alive = false;
     }
+    
+    if(vm->stack.x < 0) {
+      vm->stack.x = WORLD_WIDTH + vm->stack.x;
+    }
 
     if(vm->heading == RIGHT) {
-        vm->pc.x++;
+        vm->pc.x = (vm->pc.x + 1) % WORLD_WIDTH;
     }
     else if(vm->heading == LEFT) {
         vm->pc.x--;
+        if(vm->pc.x < 0) {
+          vm->pc.x = WORLD_WIDTH + vm->pc.x;
+        }
     }
     else if(vm->heading == UP) {
         vm->pc.y--;
+        if(vm->pc.y < 0) {
+          vm->pc.y = WORLD_HEIGHT + vm->pc.y;
+        }
     }
     else if(vm->heading == DOWN) {
-        vm->pc.y++;
+        vm->pc.y = (vm->pc.y + 1) % WORLD_WIDTH;
     }
-
+    
+    printf("[%s] -alive %d\n", vm->uuid, is_alive);
     return is_alive;
 }
 
 /* searches shared RAM and finds an available location for a new prg */
 void find_ram(char shared[WORLD_HEIGHT][WORLD_WIDTH], point* p) {
-    // wrap arounds for pcs and init interpreter
     // map interface with real shared memeory  
     // finish instruction set
     int x = rand() % WORLD_WIDTH -  PRG_WIDTH;
@@ -390,7 +435,7 @@ int main() {
         curr_vm = vms;
 
         while(curr_vm != NULL) {
-            if(!step_interpreter(shared, &(curr_vm->vm))) {
+            if(!step_interpreter(shared, &curr_vm->vm)) {
                 /* dealing with the head */
                 if(prev_vm == NULL) {
                     vms = NULL;
@@ -399,7 +444,7 @@ int main() {
                     prev_vm->next = curr_vm->next;
                 }
 
-                bytes_to_send = prg_died_msg(&new_node->vm, msg_buffer);
+                bytes_to_send = prg_died_msg(&curr_vm->vm, msg_buffer);
                 if(mq_send(msg_i, msg_buffer, bytes_to_send, 0) == -1) {
                     perror("Unable to write to message queue responses");
                 }

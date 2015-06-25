@@ -17,10 +17,10 @@ while true
   uuid = payload[1..payload.length]
   
   if code == "\x01"
-    puts "#{uuid} is born"
+    #puts "#{uuid} is born"
     $PRGS.insert :created_at => DateTime.now, :uuid => uuid
   elsif code == "\x00"
-    puts "#{uuid} has died"
+    #puts "#{uuid} has died"
     $PRGS.where(:uuid => uuid).update :died_at => DateTime.now
   end
 end

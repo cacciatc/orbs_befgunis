@@ -14,8 +14,8 @@ get '/' do
 end
 
 # prg query by id
-get '/api/fungals/:uuid' do
-  {:result => ($PRGS.where(:uuid => @uuid).all)}.to_json
+get '/api/fungals/:uuid' do |uuid|
+  {:result => ($PRGS.where(:uuid => uuid).all)}.to_json
 end
 
 # prg creation
